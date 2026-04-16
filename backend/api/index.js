@@ -41,7 +41,7 @@ if (!process.env.MONGODB_URI) {
 // ===============================
 
 // Sync User
-app.post('/users/sync', async (req, res) => {
+app.post('/api/users/sync', async (req, res) => {
   try {
     const { uid, fullName, email, phone, address, photoURL } = req.body;
 
@@ -58,7 +58,7 @@ app.post('/users/sync', async (req, res) => {
 });
 
 // Get Profile
-app.get('/users/profile/:uid', async (req, res) => {
+app.get('/api/users/profile/:uid', async (req, res) => {
   try {
     const user = await User.findOne({ uid: req.params.uid });
     if (!user) return res.status(404).json({ success: false, message: 'User not found' });
@@ -70,7 +70,7 @@ app.get('/users/profile/:uid', async (req, res) => {
 });
 
 // Get All Users
-app.get('/users', async (req, res) => {
+app.get('/api/users', async (req, res) => {
   try {
     const users = await User.find().sort({ createdAt: -1 });
     res.status(200).json(users);
@@ -82,7 +82,7 @@ app.get('/users', async (req, res) => {
 // ===============================
 // PRODUCTS + NOTIFICATION
 // ===============================
-app.post('/products', async (req, res) => {
+app.post('/api/products', async (req, res) => {
   try {
     const productData = { ...req.body };
 
@@ -128,7 +128,7 @@ app.post('/products', async (req, res) => {
 });
 
 // Get Products
-app.get('/products', async (req, res) => {
+app.get('/api/products', async (req, res) => {
   try {
     const products = await Product.find().sort({ createdAt: -1 });
     res.status(200).json(products);
@@ -138,7 +138,7 @@ app.get('/products', async (req, res) => {
 });
 
 // Update Product
-app.put('/products/:id', async (req, res) => {
+app.put('/api/products/:id', async (req, res) => {
   try {
     const data = { ...req.body };
 
@@ -161,7 +161,7 @@ app.put('/products/:id', async (req, res) => {
 });
 
 // Delete Product
-app.delete('/products/:id', async (req, res) => {
+app.delete('/api/products/:id', async (req, res) => {
   try {
     const product = await Product.findByIdAndDelete(req.params.id);
     if (!product) return res.status(404).json({ success: false });
@@ -178,7 +178,7 @@ app.delete('/products/:id', async (req, res) => {
 // ===============================
 
 // Place Order
-app.post('/orders', async (req, res) => {
+app.post('/api/orders', async (req, res) => {
   try {
     const order = new Order(req.body);
     await order.save();
@@ -190,7 +190,7 @@ app.post('/orders', async (req, res) => {
 });
 
 // Get User Orders
-app.get('/orders/user/:userId', async (req, res) => {
+app.get('/api/orders/user/:userId', async (req, res) => {
   try {
     const { userId } = req.params;
 
@@ -221,7 +221,7 @@ app.get('/orders/user/:userId', async (req, res) => {
 // ===============================
 
 // Sync Cart
-app.post('/cart/sync', async (req, res) => {
+app.post('/api/cart/sync', async (req, res) => {
   try {
     const { userId, items } = req.body;
 
@@ -244,7 +244,7 @@ app.post('/cart/sync', async (req, res) => {
 });
 
 // Get Cart
-app.get('/cart/:userId', async (req, res) => {
+app.get('/api/cart/:userId', async (req, res) => {
   try {
     const cart = await Cart.findOne({ userId: req.params.userId })
       .populate('items.productId');
@@ -259,7 +259,7 @@ app.get('/cart/:userId', async (req, res) => {
 // ===============================
 // ADMIN STATS
 // ===============================
-app.get('/admin/stats', async (req, res) => {
+app.get('/api/admin/stats', async (req, res) => {
   try {
     const [userCount, productCount, orderCount, lowStockCount] = await Promise.all([
       User.countDocuments(),
@@ -282,7 +282,7 @@ app.get('/admin/stats', async (req, res) => {
 
 
 // ===============================
-app.get('/db-status', async (req, res) => {
+app.get('/api/db-status', async (req, res) => {
   try {
     const count = await Product.countDocuments();
     res.status(200).json({ 
