@@ -12,6 +12,7 @@ const Cart = require('../models/Cart');
 // Services (Updated paths for api/ folder)
 const cloudinary = require('../config/cloudinary');
 const { admin, isReady } = require('../firebaseAdmin');
+const fetch = require('node-fetch'); // Moved to top
 
 const app = express();
 
@@ -138,11 +139,12 @@ app.post('/api/products', async (req, res) => {
 
     // 🔥 PUSH NOTIFICATION (via Bridge)
     try {
+      console.log("DEBUG: Starting Notification Bridge check...");
       const bridgeUrl = process.env.NOTIFICATION_BRIDGE_URL;
+      
       if (bridgeUrl) {
-        // We use standard fetch (Cloudinary already uses it)
-        const fetch = require('node-fetch'); 
-        await fetch(bridgeUrl, {
+        console.log(`DEBUG: Calling Bridge: ${bridgeUrl.substring(0, 30)}...`);
+        const response = await fetch(bridgeUrl, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -158,12 +160,15 @@ app.post('/api/products', async (req, res) => {
             }
           })
         });
-        console.log('📢 Notification sent via Bridge');
+
+        const result = await response.text();
+        console.log(`📢 Bridge Status: ${response.status}`);
+        console.log(`📢 Bridge Response: ${result}`);
       } else {
-        console.log('ℹ️ No Notification Bridge URL found. Skipping.');
+        console.log('ℹ️ No Notification Bridge URL found in Environment Variables.');
       }
     } catch (err) {
-      console.log('⚠️ Notification Bridge Error:', err.message);
+      console.log('⚠️ Notification Bridge Critical Error:', err.message);
     }
 
     res.status(201).json({ success: true, product });
