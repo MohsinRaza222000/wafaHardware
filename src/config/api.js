@@ -1,4 +1,4 @@
-export const BASE_URL = 'http://192.168.1.22:5000'; // Updated to your current local IP 192.168.1.14
+export const BASE_URL = 'https://wafa-hardware-cfggllow8-mohsinraza222000s-projects.vercel.app';
 
 export const ENDPOINTS = {
   // Auth & User Sync
