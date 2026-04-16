@@ -136,27 +136,34 @@ app.post('/api/products', async (req, res) => {
     const product = new Product(productData);
     await product.save();
 
-    // 🔥 PUSH NOTIFICATION
+    // 🔥 PUSH NOTIFICATION (via Bridge)
     try {
-      if (isReady) {
-        await admin.messaging().send({
-          topic: 'allUsers',
-          notification: {
+      const bridgeUrl = process.env.NOTIFICATION_BRIDGE_URL;
+      if (bridgeUrl) {
+        // We use standard fetch (Cloudinary already uses it)
+        const fetch = require('node-fetch'); 
+        await fetch(bridgeUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            secret: "WAFA_HARDWARE_SECRET_123",
             title: `🛒 ${product.title || 'New Product'}`,
             body: `${product.title} is now available!`,
             image: product.image,
-          },
-          data: {
-            productId: product._id.toString(),
-            title: product.title || '',
-            price: String(product.price || 0),
-            image: product.image || '',
-          },
+            data: {
+              productId: product._id.toString(),
+              title: product.title || '',
+              price: String(product.price || 0),
+              image: product.image || '',
+            }
+          })
         });
-        console.log('📢 Notification sent');
+        console.log('📢 Notification sent via Bridge');
+      } else {
+        console.log('ℹ️ No Notification Bridge URL found. Skipping.');
       }
     } catch (err) {
-      console.log('⚠️ Notification Error:', err.message);
+      console.log('⚠️ Notification Bridge Error:', err.message);
     }
 
     res.status(201).json({ success: true, product });
