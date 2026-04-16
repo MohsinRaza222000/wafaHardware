@@ -283,18 +283,25 @@ app.get('/api/admin/stats', async (req, res) => {
 
 // ===============================
 app.get('/api/db-status', async (req, res) => {
+  const states = ['Disconnected', 'Connected', 'Connecting', 'Disconnecting'];
+  const state = mongoose.connection.readyState;
+  
   try {
-    const count = await Product.countDocuments();
+    // Force a small timeout to check if we can reach the DB
+    const count = await Product.countDocuments().maxTimeMS(5000);
     res.status(200).json({ 
       success: true, 
       message: 'Database Connected!', 
+      connectionState: states[state],
       productCount: count 
     });
   } catch (error) {
     res.status(500).json({ 
       success: false, 
       message: 'Database Connection Error', 
-      error: error.message 
+      connectionState: states[state],
+      error: error.message,
+      tip: "If state is Connecting or Disconnected, check your MongoDB Atlas IP Whitelist (0.0.0.0/0) and your password."
     });
   }
 });
