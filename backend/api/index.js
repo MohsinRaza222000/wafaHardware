@@ -27,10 +27,13 @@ if (!process.env.MONGODB_URI) {
   console.error("❌ MONGODB_URI is missing from environment variables!");
 } else {
   mongoose.connect(process.env.MONGODB_URI, {
-    dbName: 'wafaHardware'
+    dbName: 'wafaHardware',
+    serverSelectionTimeoutMS: 5000, // Timeout after 5 seconds instead of hanging
   })
     .then(() => console.log('✅ MongoDB Connected'))
-    .catch(err => console.error('❌ MongoDB Error:', err));
+    .catch(err => {
+      console.error('❌ MongoDB Error:', err.message);
+    });
 }
 
 // ===============================
