@@ -14,27 +14,66 @@ const cloudinary = require('../config/cloudinary');
 const { admin, isReady } = require('../firebaseAdmin');
 
 const app = express();
-const PORT = process.env.PORT || 5000;
 
+// ===============================
+// SERVERLESS MONGOOSE CONNECTION (CACHED)
+// ===============================
+let cachedConnection = global.mongoose;
+
+if (!cachedConnection) {
+  cachedConnection = global.mongoose = { conn: null, promise: null };
+}
+
+async function connectDB() {
+  if (cachedConnection.conn) return cachedConnection.conn;
+
+  if (!cachedConnection.promise) {
+    const opts = {
+      dbName: 'wafaHardware',
+      bufferCommands: false, // FAIL FAST if not connected
+      serverSelectionTimeoutMS: 5000,
+      maxPoolSize: 5, // Best for serverless
+    };
+
+    if (!process.env.MONGODB_URI) {
+      throw new Error("MONGODB_URI is missing from environment variables!");
+    }
+
+    cachedConnection.promise = mongoose.connect(process.env.MONGODB_URI, opts).then((m) => {
+      console.log('✅ MongoDB Connected (New Connection)');
+      return m;
+    });
+  }
+
+  try {
+    cachedConnection.conn = await cachedConnection.promise;
+  } catch (e) {
+    cachedConnection.promise = null;
+    throw e;
+  }
+
+  return cachedConnection.conn;
+}
+
+// ===============================
 // Middleware
+// ===============================
 app.use(cors());
 app.use(express.json({ limit: '50mb' }));
 
-// ===============================
-// MongoDB Connection
-// ===============================
-if (!process.env.MONGODB_URI) {
-  console.error("❌ MONGODB_URI is missing from environment variables!");
-} else {
-  mongoose.connect(process.env.MONGODB_URI, {
-    dbName: 'wafaHardware',
-    serverSelectionTimeoutMS: 5000, // Timeout after 5 seconds instead of hanging
-  })
-    .then(() => console.log('✅ MongoDB Connected'))
-    .catch(err => {
-      console.error('❌ MongoDB Error:', err.message);
+// Database Guard Middleware: Runs on every request starting with /api
+app.use('/api', async (req, res, next) => {
+  try {
+    await connectDB();
+    next();
+  } catch (err) {
+    res.status(500).json({ 
+      success: false, 
+      message: "Database Connection Failure", 
+      error: err.message 
     });
-}
+  }
+});
 
 // ===============================
 // USERS
@@ -282,26 +321,36 @@ app.get('/api/admin/stats', async (req, res) => {
 
 
 // ===============================
+// DIAGNOSTICS (SMART)
+// ===============================
 app.get('/api/db-status', async (req, res) => {
   const states = ['Disconnected', 'Connected', 'Connecting', 'Disconnecting'];
   const state = mongoose.connection.readyState;
   
+  // Mask the URI for security
+  const uri = process.env.MONGODB_URI || "MISSING";
+  const maskedUri = uri.replace(/\/\/.*:.*@/, "//USER:PASSWORD@");
+
   try {
-    // Force a small timeout to check if we can reach the DB
-    const count = await Product.countDocuments().maxTimeMS(5000);
+    await connectDB();
+    const count = await Product.countDocuments();
     res.status(200).json({ 
       success: true, 
-      message: 'Database Connected!', 
+      message: 'Database Connected Successfully!', 
       connectionState: states[state],
-      productCount: count 
+      productCount: count,
+      uriDetected: uri !== "MISSING",
+      uriMasked: maskedUri
     });
   } catch (error) {
     res.status(500).json({ 
       success: false, 
       message: 'Database Connection Error', 
       connectionState: states[state],
+      uriDetected: uri !== "MISSING",
+      uriMasked: maskedUri,
       error: error.message,
-      tip: "If state is Connecting or Disconnected, check your MongoDB Atlas IP Whitelist (0.0.0.0/0) and your password."
+      tip: "If the error is 'bad auth', check your password in Vercel. If it is 'timeout', check your IP Whitelist in MongoDB Atlas."
     });
   }
 });
@@ -310,5 +359,4 @@ app.get('/', (req, res) => {
   res.send('Wafa Hardware API is running on Vercel!');
 });
 
-// NO app.listen here for Vercel
 module.exports = app;
