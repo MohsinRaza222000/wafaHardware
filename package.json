@@ -40,7 +40,14 @@
     "react-native-worklets": "^0.8.1",
     "react-redux": "^9.2.0",
     "redux": "^5.0.1",
-    "redux-thunk": "^3.1.0"
+    "redux-thunk": "^3.1.0",
+    "express": "^4.21.0",
+    "cors": "^2.8.5",
+    "mongoose": "^8.6.2",
+    "cloudinary": "^1.41.3",
+    "node-fetch": "^2.7.1",
+    "multer": "^2.1.1",
+    "multer-storage-cloudinary": "^4.0.0"
   },
   "devDependencies": {
     "@babel/core": "^7.25.2",
@@ -62,7 +69,4 @@
     "react-test-renderer": "19.2.3",
     "typescript": "^5.8.3"
   },
-  "engines": {
-    "node": ">= 22.11.0"
-  }
 }
