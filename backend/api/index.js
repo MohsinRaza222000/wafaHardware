@@ -282,6 +282,23 @@ app.get('/admin/stats', async (req, res) => {
 
 
 // ===============================
+app.get('/db-status', async (req, res) => {
+  try {
+    const count = await Product.countDocuments();
+    res.status(200).json({ 
+      success: true, 
+      message: 'Database Connected!', 
+      productCount: count 
+    });
+  } catch (error) {
+    res.status(500).json({ 
+      success: false, 
+      message: 'Database Connection Error', 
+      error: error.message 
+    });
+  }
+});
+
 app.get('/', (req, res) => {
   res.send('Wafa Hardware API is running on Vercel!');
 });
