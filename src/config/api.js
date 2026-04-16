@@ -1,4 +1,4 @@
-export const BASE_URL = 'https://wafa-hardware-cfggllow8-mohsinraza222000s-projects.vercel.app';
+export const BASE_URL = 'https://wafa-hardware.vercel.app';
 
 export const ENDPOINTS = {
   // Auth & User Sync
