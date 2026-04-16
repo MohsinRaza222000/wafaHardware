@@ -1,5 +1,7 @@
 const admin = require('firebase-admin');
 
+let isReady = false;
+
 // Initialize with service account from Env Var for Vercel compatibility
 if (process.env.FIREBASE_SERVICE_ACCOUNT) {
   try {
@@ -8,14 +10,12 @@ if (process.env.FIREBASE_SERVICE_ACCOUNT) {
       credential: admin.credential.cert(serviceAccount),
     });
     console.log("🔥 Firebase Admin initialized with Service Account");
+    isReady = true;
   } catch (err) {
-    console.error("❌ Firebase Initialization Error:", err.message);
+    console.error("⚠️ Firebase Initialization Error:", err.message);
   }
 } else {
-  // Fallback for local dev
-  admin.initializeApp({
-    credential: admin.credential.applicationDefault(),
-  });
+  console.log("ℹ️ No Firebase Service Account found. Notifications will be disabled.");
 }
 
-module.exports = admin;
+module.exports = { admin, isReady };

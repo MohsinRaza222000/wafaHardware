@@ -11,7 +11,7 @@ const Cart = require('./models/Cart');
 
 // Services
 const cloudinary = require('./config/cloudinary');
-const admin = require('./firebaseAdmin');
+const { admin, isReady } = require('./firebaseAdmin');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -94,7 +94,8 @@ app.post('/api/products', async (req, res) => {
 
     // 🔥 PUSH NOTIFICATION
     try {
-      await admin.messaging().send({
+      if (isReady) {
+        await admin.messaging().send({
         topic: 'allUsers',
         notification: {
           title: `🛒 ${product.title || 'New Product'}`,
