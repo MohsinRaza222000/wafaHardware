@@ -95,11 +95,12 @@ function App() {
     return messaging().onMessage(async remoteMessage => {
       console.log('📩 Foreground Message:', remoteMessage);
 
-      const notifImage = remoteMessage.notification?.android?.imageUrl || remoteMessage.notification?.image;
+      const notifData = remoteMessage.data || {};
+      const notifImage = remoteMessage.notification?.android?.imageUrl || remoteMessage.notification?.image || notifData.image;
 
       await notifee.displayNotification({
-        title: remoteMessage.notification?.title || 'New Notification',
-        body: remoteMessage.notification?.body || '',
+        title: remoteMessage.notification?.title || notifData.title || 'New Notification',
+        body: remoteMessage.notification?.body || notifData.body || '',
         android: {
           channelId: 'default',
           smallIcon: 'ic_launcher',
