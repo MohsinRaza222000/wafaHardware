@@ -8,7 +8,8 @@
     "lint": "eslint .",
     "start": "react-native start",
     "test": "jest",
-    "build:apk": "node scripts/build-apk.js"
+    "build:apk": "node scripts/build-apk.js",
+    "build": "echo 'Skipping frontend build for Vercel serverless deployment'"
   },
   "dependencies": {
     "@notifee/react-native": "^9.1.8",

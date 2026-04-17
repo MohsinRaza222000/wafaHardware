@@ -5,7 +5,8 @@
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
-    "dev": "nodemon server.js"
+    "dev": "nodemon server.js",
+    "build": "echo 'Skipping frontend build for Vercel serverless deployment'"
   },
   "dependencies": {
     "cloudinary": "^1.41.3",
