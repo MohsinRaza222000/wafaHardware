@@ -1,12 +1,10 @@
 android/
 ios/
-node_modules/
-package.json
-package-lock.json
 src/
 App.js
 App.tsx
-index.js
 metro.config.js
-# Only let Vercel see this:
-!backend/
+jest.config.js
+babel.config.js
+__tests__/
+index.js
