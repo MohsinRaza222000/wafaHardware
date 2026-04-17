@@ -151,6 +151,7 @@ app.post('/api/products', async (req, res) => {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             secret: "WAFA_HARDWARE_SECRET_123",
+            topic: "allUsers",
             title: `🛒 ${product.title || 'New Product'}`,
             body: `${product.title} is now available!`,
             image: product.image,
