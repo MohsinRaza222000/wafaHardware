@@ -12,23 +12,72 @@ const Cart = require('./models/Cart');
 // Services
 const cloudinary = require('./config/cloudinary');
 const { admin, isReady } = require('./firebaseAdmin');
+const fetch = require('node-fetch');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
 
+// ===============================
+// SERVERLESS MONGOOSE CONNECTION (CACHED)
+// ===============================
+let cachedConnection = global.mongoose;
+
+if (!cachedConnection) {
+  cachedConnection = global.mongoose = { conn: null, promise: null };
+}
+
+async function connectDB() {
+  if (cachedConnection.conn) return cachedConnection.conn;
+
+  if (!cachedConnection.promise) {
+    const opts = {
+      dbName: 'wafaHardware',
+      bufferCommands: false,
+      serverSelectionTimeoutMS: 5000,
+      maxPoolSize: 5,
+    };
+
+    if (!process.env.MONGODB_URI) {
+      console.warn("⚠️ MONGODB_URI is missing. Will try to catch later.");
+    }
+
+    const uri = process.env.MONGODB_URI || "mongodb://localhost:27017/test";
+
+    cachedConnection.promise = mongoose.connect(uri, opts).then((m) => {
+      console.log('✅ MongoDB Connected (New Connection)');
+      return m;
+    });
+  }
+
+  try {
+    cachedConnection.conn = await cachedConnection.promise;
+  } catch (e) {
+    cachedConnection.promise = null;
+    throw e;
+  }
+
+  return cachedConnection.conn;
+}
+
+// ===============================
 // Middleware
+// ===============================
 app.use(cors());
 app.use(express.json({ limit: '50mb' }));
 
-// ===============================
-// MongoDB Connection
-// ===============================
-mongoose.connect(process.env.MONGODB_URI, {
-  dbName: 'wafaHardware'
-})
-  .then(() => console.log('✅ MongoDB Connected'))
-  .catch(err => console.error('❌ MongoDB Error:', err));
-
+// Database Guard Middleware: Runs on every request starting with /api
+app.use('/api', async (req, res, next) => {
+  try {
+    await connectDB();
+    next();
+  } catch (err) {
+    res.status(500).json({ 
+      success: false, 
+      message: "Database Connection Failure", 
+      error: err.message 
+    });
+  }
+});
 
 // ===============================
 // USERS
@@ -73,7 +122,6 @@ app.get('/api/users', async (req, res) => {
   }
 });
 
-
 // ===============================
 // PRODUCTS + NOTIFICATION
 // ===============================
@@ -81,7 +129,6 @@ app.post('/api/products', async (req, res) => {
   try {
     const productData = { ...req.body };
 
-    // ☁️ Upload Image
     if (productData.image && productData.image.startsWith('data:image')) {
       const upload = await cloudinary.uploader.upload(productData.image, {
         folder: 'wafaHardware',
@@ -92,27 +139,38 @@ app.post('/api/products', async (req, res) => {
     const product = new Product(productData);
     await product.save();
 
-    // 🔥 PUSH NOTIFICATION
+    // 🔥 PUSH NOTIFICATION (via Bridge)
     try {
-      if (isReady) {
-        await admin.messaging().send({
-        topic: 'allUsers',
-        notification: {
-          title: `🛒 ${product.title || 'New Product'}`,
-          body: `${product.title} is now available!`,
-          image: product.image,
-        },
-        data: {
-          productId: product._id.toString(),
-          title: product.title || '',
-          price: String(product.price || 0),
-          image: product.image || '',
-        },
-      });
+      console.log("DEBUG: Starting Notification Bridge check...");
+      const bridgeUrl = process.env.NOTIFICATION_BRIDGE_URL;
+      
+      if (bridgeUrl) {
+        console.log(`DEBUG: Calling Bridge: ${bridgeUrl.substring(0, 30)}...`);
+        const response = await fetch(bridgeUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            secret: "WAFA_HARDWARE_SECRET_123",
+            title: `🛒 ${product.title || 'New Product'}`,
+            body: `${product.title} is now available!`,
+            image: product.image,
+            data: {
+              productId: product._id.toString(),
+              title: product.title || '',
+              price: String(product.price || 0),
+              image: product.image || '',
+            }
+          })
+        });
 
-      console.log('📢 Notification sent');
+        const result = await response.text();
+        console.log(`📢 Bridge Status: ${response.status}`);
+        console.log(`📢 Bridge Response: ${result}`);
+      } else {
+        console.log('ℹ️ No Notification Bridge URL found in Environment Variables.');
+      }
     } catch (err) {
-      console.log('⚠️ Notification Error:', err.message);
+      console.log('⚠️ Notification Bridge Critical Error:', err.message);
     }
 
     res.status(201).json({ success: true, product });
@@ -184,7 +242,7 @@ app.post('/api/orders', async (req, res) => {
   }
 });
 
-// Get User Orders (FIXED)
+// Get User Orders
 app.get('/api/orders/user/:userId', async (req, res) => {
   try {
     const { userId } = req.params;
@@ -212,7 +270,7 @@ app.get('/api/orders/user/:userId', async (req, res) => {
 
 
 // ===============================
-// CART (FIXED)
+// CART
 // ===============================
 
 // Sync Cart
@@ -277,10 +335,43 @@ app.get('/api/admin/stats', async (req, res) => {
 
 
 // ===============================
-app.get('/', (req, res) => {
-  res.send('Wafa Hardware API is running...');
+// DIAGNOSTICS (SMART)
+// ===============================
+app.get('/api/db-status', async (req, res) => {
+  const states = ['Disconnected', 'Connected', 'Connecting', 'Disconnecting'];
+  const state = mongoose.connection.readyState;
+  
+  const uri = process.env.MONGODB_URI || "MISSING";
+  const maskedUri = uri.replace(/\/\/.*:.*@/, "//USER:PASSWORD@");
+
+  try {
+    await connectDB();
+    const count = await Product.countDocuments();
+    res.status(200).json({ 
+      success: true, 
+      message: 'Database Connected Successfully!', 
+      connectionState: states[state],
+      productCount: count,
+      uriDetected: uri !== "MISSING",
+      uriMasked: maskedUri
+    });
+  } catch (error) {
+    res.status(500).json({ 
+      success: false, 
+      message: 'Database Connection Error', 
+      connectionState: states[state],
+      uriDetected: uri !== "MISSING",
+      uriMasked: maskedUri,
+      error: error.message
+    });
+  }
 });
 
+app.get('/', (req, res) => {
+  res.send('Wafa Hardware API (Server) is running on Vercel!');
+});
+
+// Local dev listening
 if (!process.env.VERCEL) {
   app.listen(PORT, () => {
     console.log(`🚀 Server running on port ${PORT}`);
